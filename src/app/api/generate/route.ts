@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+function getGroqClient() {
+  return new Groq({
+    apiKey: process.env.GROQ_API_KEY || "",
+  });
+}
 
 // Simple in-memory rate limiting (per IP, resets on deploy)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -103,6 +105,15 @@ JOB DESCRIPTION:
 ${jobDescription}
 
 Write the cover letter now.`;
+
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
+
+    const groq = getGroqClient();
 
     // Stream the response
     const stream = await groq.chat.completions.create({
