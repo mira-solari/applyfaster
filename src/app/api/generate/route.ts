@@ -116,6 +116,17 @@ const BANNED_PHRASES: readonly string[] = [
   "unique perspective",
   "unique insight",
   "help inform",
+  "my background is also relevant",
+  "is also relevant",
+  "i would bring",
+  "i would focus on",
+  "has also equipped",
+  "also equipped me",
+  "business acumen",
+  "necessary business acumen",
+  "technical expertise and business",
+  "i'm prepared to",
+  "i am prepared to",
 ] as const;
 
 /**
@@ -385,6 +396,51 @@ function rewriteBannedPhrases(text: string): {
       pattern: /,?\s*(?:to )?drive \w+'s continued success\.?\s*/gi,
       replacement: ". ",
     },
+    // "my background [in X] is also relevant" -> remove subordinate justification sentence
+    {
+      pattern: /[^.\n]*my background[^.\n]*is also relevant[^.\n]*\.\s?/gi,
+      replacement: "",
+    },
+    // "is also relevant, having" -> "— I" (reframe from justification to assertion)
+    {
+      pattern: /is also relevant,?\s*having /gi,
+      replacement: "— I ",
+    },
+    // "I would bring [X] to" -> "At [previous], I [X]" — can't auto-fix perfectly, strip the hedge
+    {
+      pattern: /I would bring /gi,
+      replacement: "I bring ",
+    },
+    // "I would focus on" -> "The first priority is" (declarative, not conditional)
+    {
+      pattern: /I would focus on/gi,
+      replacement: "The first priority is",
+    },
+    // "has also equipped me with" / "also equipped me with" -> "gave me"
+    {
+      pattern: /(?:has )?also equipped me with (?:the (?:necessary |valuable )?)?/gi,
+      replacement: "gave me ",
+    },
+    // "business acumen" -> "commercial judgment" (less buzzwordy)
+    {
+      pattern: /(?:necessary )?business acumen/gi,
+      replacement: "commercial judgment",
+    },
+    // "technical expertise and business acumen" -> "experience"
+    {
+      pattern: /(?:my )?technical expertise and (?:business acumen|commercial judgment)/gi,
+      replacement: "my experience",
+    },
+    // "I am/I'm prepared to [verb]" -> "I will [verb]" (remove hedge, make declarative)
+    {
+      pattern: /I(?:'m|'m| am) prepared to /gi,
+      replacement: "I will ",
+    },
+    // "Additionally, my experience" -> "At [implied]" — strip the listing connector
+    {
+      pattern: /Additionally,?\s*my experience (?:as |at |in |with )?/gi,
+      replacement: "My work ",
+    },
     // "that's a challenge I'm ready to take on" -> remove formulaic closing
     {
       pattern: /[^.\n]*(?:that's a challenge|that is a challenge) I(?:'m|'m| am) ready to take on[^.\n]*\.\s?/gi,
@@ -579,6 +635,10 @@ FORBIDDEN PHRASES — using any of these means instant rejection. Do NOT write t
 - "apply my skills and experience to enhance"
 - "as a seasoned executive" / "as a seasoned [anything]"
 - "drive [Company]'s continued success"
+- "my background is also relevant" / "is also relevant" (subordinate justification)
+- "I would bring" / "I would focus on" (conditional hedging — use declarative: "I will" or "The first priority is")
+- "business acumen" (buzzword — say "commercial judgment" or just show it through specifics)
+- "I'm prepared to" / "I am prepared to" (announcing preparedness is subordinate — just state what you will do)
 
 Instead of saying you're excited/confident/eager, SHOW it through specific knowledge and concrete plans. "Your recent move into enterprise AI data with the DoD contract tells me Scale needs someone who's built FedRAMP-compliant pipelines — I did exactly that at Cloudflare" conveys excitement through specificity.
 
@@ -668,12 +728,29 @@ TONE AND STANCE:
 - NEVER justify qualifications. NEVER list tools, frameworks, or tactical skills. An executive does not mention that they know Excel or Salesforce.
 - No hedging ("I believe," "I feel," "I think I could"). Use declarative statements: "The path forward is..." / "What this role requires is..." / "I built..."
 
+OPENING SENTENCE — THIS IS CRITICAL:
+- The FIRST sentence MUST contain a strategic observation about the company's trajectory, market position, or a challenge they face. NOT a self-description. NOT "As a seasoned..." NOT "[Company] presents a compelling..."
+- Good: "GrowthOS's move into enterprise revenue operations puts it in direct competition with Salesforce's analytics layer — and that fight is won on platform reliability, not features."
+- Good: "The gap between GrowthOS's $30M ARR and the $200M ceiling in rev-ops is an engineering culture problem, not a product problem."
+- Bad: "GrowthOS's AI-powered revenue operations platform presents a compelling opportunity for technical leadership." (This is subordinate framing — you are describing the opportunity, not analyzing the business.)
+- Bad: "As a seasoned executive with experience scaling engineering organizations, I have driven similar transformations." (This is applicant framing — you are justifying yourself.)
+
 CONTENT — WHAT TO WRITE:
 - Lead with a strategic perspective on the company's trajectory, market position, or an industry shift. Show board-level thinking.
 - Convey a leadership PHILOSOPHY — how they build organizations, how they think about growth, culture, or transformation — not a list of achievements.
 - Reference outcomes at the scale executives operate: revenue, org size, market entry, M&A, board governance, capital allocation.
 - Connect their experience to the company's FUTURE, not its current job requirements. Executives shape the role; they don't fit into it.
 - End with a point of view on where the company should go — a strategic thesis, not a request for a meeting.
+
+EXECUTIVE ANTI-PATTERNS — NEVER USE THESE PHRASES OR FRAMINGS:
+- "presents a compelling opportunity" — subordinate framing. An executive does not describe opportunities presented to them. They identify what they see and what they will do.
+- "equipped me with" — passive voice implying experience happened TO them. Executives drove their experience; it did not equip them.
+- "I am prepared to leverage" / "I'm prepared to" — hedge + buzzword. An executive does not announce preparedness. They state intent: "I will" or "The first priority is."
+- "positioned me to" — same problem. You positioned yourself. Say what you did and what you will do.
+- "my background is also relevant" — justifying relevance to someone. A peer does not justify relevance. They demonstrate it by speaking with authority about the problem.
+- "I would bring" / "I would focus on" — conditional hedging. Use declarative: "The first thing this org needs is..." or "At FinFlow, I solved exactly this..."
+- "also relevant" / "additionally" — listing qualifications in sequence is resume-speak. Weave experience into a strategic narrative instead.
+- An executive does not LIST qualifications. They TELL A STORY about a transformation they led, and the qualifications emerge naturally from the narrative.
 
 WHAT TO AVOID:
 - NEVER list specific tools, technologies, or tactical plans. Executives set direction; teams choose tools.
