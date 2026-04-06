@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import {
   getPurchaseFromRequest,
   getFreeCountFromRequest,
@@ -9,9 +9,9 @@ import {
   type PurchasePayload,
 } from "@/lib/purchase";
 
-function getGroqClient() {
-  return new Groq({
-    apiKey: process.env.GROQ_API_KEY || "",
+function getAnthropicClient() {
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY || "",
   });
 }
 
@@ -942,26 +942,36 @@ ${whyYou.trim()}`;
 - MANDATORY: If the resume lists certifications, degrees, or professional credentials (e.g., PMP, CFA, Google certificates, AWS certs, Reforge), you MUST mention at least one by name. For career changers, these prove commitment — omitting them is a critical error.
 - End with substance (a specific idea or plan), NOT "I'd love to discuss"`;
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { error: "Service temporarily unavailable. Please try again later." },
         { status: 503 }
       );
     }
 
-    const groq = getGroqClient();
+    const anthropic = getAnthropicClient();
 
-    // Stream the response, but buffer it for post-processing
-    const stream = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
+    const response = await anthropic.messages.create({
+      model: "claude-opus-4-6",
       max_tokens: 1536,
-      stream: true,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+      temperature: 0.7,
     });
+
+    const fullText =
+      response.content[0].type === "text" ? response.content[0].text : "";
+
+    // Post-process: rewrite banned phrases
+    const { cleaned, rewriteCount } = rewriteBannedPhrases(fullText);
+    const remaining = countRemainingBanned(cleaned);
+
+    if (rewriteCount > 0 || remaining.length > 0) {
+      console.warn(
+        `[ApplyFaster] Banned phrase post-processing: rewrote ${rewriteCount} patterns. ` +
+          `Remaining after rewrite: ${remaining.length > 0 ? remaining.join(", ") : "none"}`
+      );
+    }
 
     // If we need to update the purchase cookie (e.g., increment single usage),
     // add it to the response headers
@@ -970,37 +980,11 @@ ${whyYou.trim()}`;
       setCookieHeaders.push(purchaseCookieHeader(updatedPurchase, maxAge));
     }
 
-    // Buffer the full response, then post-process banned phrases before
-    // streaming to the client. We collect all chunks first because regex
-    // rewrites need the complete text.
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          let fullText = "";
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-            }
-          }
-
-          // Post-process: rewrite banned phrases
-          const { cleaned, rewriteCount } = rewriteBannedPhrases(fullText);
-          const remaining = countRemainingBanned(cleaned);
-
-          if (rewriteCount > 0 || remaining.length > 0) {
-            console.warn(
-              `[ApplyFaster] Banned phrase post-processing: rewrote ${rewriteCount} patterns. ` +
-                `Remaining after rewrite: ${remaining.length > 0 ? remaining.join(", ") : "none"}`
-            );
-          }
-
-          controller.enqueue(encoder.encode(cleaned));
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
+      start(controller) {
+        controller.enqueue(encoder.encode(cleaned));
+        controller.close();
       },
     });
 
