@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import {
   getPurchaseFromRequest,
   isPurchaseValid,
 } from "@/lib/purchase";
 
-function getGroqClient() {
-  return new Groq({
-    apiKey: process.env.GROQ_API_KEY || "",
+function getAnthropicClient() {
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY || "",
   });
 }
 
@@ -227,14 +227,14 @@ export async function POST(request: NextRequest) {
     // -----------------------------------------------------------------------
     // Generate the tailored resume
     // -----------------------------------------------------------------------
-    if (!process.env.GROQ_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { error: "Service temporarily unavailable. Please try again later." },
         { status: 503 }
       );
     }
 
-    const groq = getGroqClient();
+    const anthropic = getAnthropicClient();
 
     const userPrompt = `CANDIDATE'S CURRENT RESUME:
 ${resume}
@@ -249,73 +249,45 @@ Analyze the resume against this job description. Produce ALL THREE sections:
 
 Remember: If a skill, experience, or metric is not in the original resume, it MUST NOT appear in the tailored version. Put gaps in the GAPS section, not fabricated into the resume.`;
 
-    const stream = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: TAILOR_SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      model: "llama-3.3-70b-versatile",
+    const response = await anthropic.messages.create({
+      model: "claude-opus-4-6",
+      max_tokens: 4096,
+      system: TAILOR_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
       temperature: 0.3,
-      max_tokens: 2048,
-      stream: true,
     });
 
-    // Buffer the full response then parse into sections
-    const encoder = new TextEncoder();
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          let fullText = "";
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-            }
-          }
+    const fullText =
+      response.content[0].type === "text" ? response.content[0].text : "";
 
-          // Parse the response into tailored resume, gaps, and suggestions
-          const resumeMatch = fullText.match(
-            /---TAILORED_RESUME---\s*([\s\S]*?)(?=---GAPS---|---SUGGESTIONS---|$)/
-          );
-          const gapsMatch = fullText.match(
-            /---GAPS---\s*([\s\S]*?)(?=---SUGGESTIONS---|$)/
-          );
-          const suggestionsMatch = fullText.match(
-            /---SUGGESTIONS---\s*([\s\S]*?)$/
-          );
+    // Parse the response into tailored resume, gaps, and suggestions
+    const resumeMatch = fullText.match(
+      /---TAILORED_RESUME---\s*([\s\S]*?)(?=---GAPS---|---SUGGESTIONS---|$)/
+    );
+    const gapsMatch = fullText.match(
+      /---GAPS---\s*([\s\S]*?)(?=---SUGGESTIONS---|$)/
+    );
+    const suggestionsMatch = fullText.match(
+      /---SUGGESTIONS---\s*([\s\S]*?)$/
+    );
 
-          // Post-process: strip banned argumentative phrases from the
-          // tailored resume section
-          let tailoredResume = resumeMatch?.[1]?.trim() || fullText.trim();
-          const { cleaned, stripCount } =
-            stripResumeBannedPhrases(tailoredResume);
-          tailoredResume = cleaned;
+    // Post-process: strip banned argumentative phrases from the
+    // tailored resume section
+    let tailoredResume = resumeMatch?.[1]?.trim() || fullText.trim();
+    const { cleaned, stripCount } =
+      stripResumeBannedPhrases(tailoredResume);
+    tailoredResume = cleaned;
 
-          if (stripCount > 0) {
-            console.warn(
-              `[ApplyFaster] Resume tailoring: stripped ${stripCount} banned argumentative phrase patterns from output.`
-            );
-          }
+    if (stripCount > 0) {
+      console.warn(
+        `[ApplyFaster] Resume tailoring: stripped ${stripCount} banned argumentative phrase patterns from output.`
+      );
+    }
 
-          const result = JSON.stringify({
-            tailoredResume,
-            gaps: gapsMatch?.[1]?.trim() || "",
-            suggestions: suggestionsMatch?.[1]?.trim() || "",
-          });
-
-          controller.enqueue(encoder.encode(result));
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
-      },
-    });
-
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-cache",
-      },
+    return NextResponse.json({
+      tailoredResume,
+      gaps: gapsMatch?.[1]?.trim() || "",
+      suggestions: suggestionsMatch?.[1]?.trim() || "",
     });
   } catch (error: unknown) {
     console.error("Resume tailoring error:", error);
