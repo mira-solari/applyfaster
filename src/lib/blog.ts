@@ -10,6 +10,7 @@ export interface BlogPostMeta {
   date: string;
   excerpt: string;
   readTime: string;
+  draft?: boolean;
 }
 
 export interface BlogPost extends BlogPostMeta {
@@ -30,20 +31,23 @@ export function getAllPosts(): BlogPostMeta[] {
 
   const files = fs.readdirSync(BLOG_DIR).filter((f) => f.endsWith(".mdx"));
 
-  const posts = files.map((filename) => {
-    const slug = filename.replace(/\.mdx$/, "");
-    const filePath = path.join(BLOG_DIR, filename);
-    const fileContent = fs.readFileSync(filePath, "utf-8");
-    const { data, content } = matter(fileContent);
+  const posts = files
+    .map((filename) => {
+      const slug = filename.replace(/\.mdx$/, "");
+      const filePath = path.join(BLOG_DIR, filename);
+      const fileContent = fs.readFileSync(filePath, "utf-8");
+      const { data, content } = matter(fileContent);
 
-    return {
-      slug,
-      title: data.title ?? slug,
-      date: data.date ?? "",
-      excerpt: data.excerpt ?? "",
-      readTime: estimateReadTime(content),
-    };
-  });
+      return {
+        slug,
+        title: data.title ?? slug,
+        date: data.date ?? "",
+        excerpt: data.excerpt ?? "",
+        readTime: estimateReadTime(content),
+        draft: data.draft === true,
+      };
+    })
+    .filter((post) => !post.draft);
 
   // Sort by date descending (newest first)
   posts.sort((a, b) => {
@@ -82,5 +86,11 @@ export function getAllSlugs(): string[] {
   return fs
     .readdirSync(BLOG_DIR)
     .filter((f) => f.endsWith(".mdx"))
+    .filter((f) => {
+      const filePath = path.join(BLOG_DIR, f);
+      const fileContent = fs.readFileSync(filePath, "utf-8");
+      const { data } = matter(fileContent);
+      return data.draft !== true;
+    })
     .map((f) => f.replace(/\.mdx$/, ""));
 }
