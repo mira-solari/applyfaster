@@ -51,6 +51,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="saashub-verification" content="5fe3rm6mc4a8" />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
