@@ -31,6 +31,27 @@ export default function Footer() {
             © {new Date().getFullYear()} ApplyFaster. All rights reserved.
           </p>
         </div>
+
+        <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t border-[var(--border)]">
+          <a href="https://dang.ai/" target="_blank" rel="noopener">
+            <img
+              src="https://cdn.prod.website-files.com/63d8afd87da01fb58ea3fbcb/6487e2868c6c8f93b4828827_dang-badge.png"
+              alt="Featured on Dang.ai"
+              width="150"
+              height="54"
+              style={{ width: 120, height: 'auto' }}
+            />
+          </a>
+          <a href="https://startupfa.me" target="_blank" rel="noopener">
+            <img
+              src="https://startupfa.me/badge.png"
+              alt="Featured on Startup Fame"
+              width="150"
+              height="54"
+              style={{ width: 120, height: 'auto' }}
+            />
+          </a>
+        </div>
       </div>
     </footer>
   );
