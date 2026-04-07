@@ -7,6 +7,21 @@ function getStripe() {
   });
 }
 
+// Branding settings applied to every checkout session
+const BRANDING_SETTINGS = {
+  display_name: "ApplyFaster",
+  logo: {
+    type: "file" as const,
+    file: "file_1TJU9BD2Vph5hLv4q67nkYoT", // 512x512 logo
+  },
+  icon: {
+    type: "file" as const,
+    file: "file_1TJU9BD2Vph5hLv4SNat1gXR", // 128x128 icon
+  },
+  background_color: "#f8f9ff",
+  button_color: "#6366f1",
+};
+
 export async function POST(request: NextRequest) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -41,7 +56,8 @@ export async function POST(request: NextRequest) {
         ],
         success_url: `${origin}?purchased=single&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}?cancelled=true`,
-      });
+        branding_settings: BRANDING_SETTINGS,
+      } as any);
 
       return NextResponse.json({ url: session.url });
     } else if (plan === "pro") {
@@ -67,7 +83,8 @@ export async function POST(request: NextRequest) {
         ],
         success_url: `${origin}?purchased=pro&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}?cancelled=true`,
-      });
+        branding_settings: BRANDING_SETTINGS,
+      } as any);
 
       return NextResponse.json({ url: session.url });
     } else {
