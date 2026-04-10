@@ -670,7 +670,7 @@ Structure C (Narrative Thread):
 - One connecting theme that links your background to their mission → Weave 2-3 resume details into that narrative → Close with how that theme plays out in this role
 
 FORMAT:
-- 2-3 paragraphs, 200-250 words. HARD MAXIMUM: 250 words. Shorter is better. Every sentence must earn its place.
+- 2-3 paragraphs, 200-250 words. HARD MAXIMUM: 250 words. COUNT YOUR WORDS — if you are approaching 230, wrap up IMMEDIATELY. Going over 250 is a failure. Shorter is always better. Every sentence must earn its place.
 - PARAGRAPH SEPARATION: Each paragraph MUST be separated by exactly one blank line (two newline characters). Never run paragraphs together. Every paragraph must start on its own line after a blank line.
 - No header/addresses/dates — just the letter body.
 - No placeholder brackets — use actual names from the job description.
@@ -934,7 +934,7 @@ ${whyCompany.trim()}`;
 ${whyYou.trim()}`;
     }
 
-    userPrompt += `\n\nWrite the cover letter now. 200-250 words max. Remember:
+    userPrompt += `\n\nWrite the cover letter now. 200-250 words HARD LIMIT — count carefully, stop at 250. Remember:
 - ZERO FABRICATION: Every claim must trace to a specific line in the resume above. Do NOT invent projects, skills, technologies, or embellish achievements. If the resume does not say it, the letter does not say it.
 - Zero banned phrases (no "excited," "confident," "looking forward to discussing")
 - Open with a specific hook, not "I've been following [Company]"
@@ -953,7 +953,7 @@ ${whyYou.trim()}`;
 
     const response = await anthropic.messages.create({
       model: "claude-opus-4-6",
-      max_tokens: 1536,
+      max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.7,
@@ -973,6 +973,37 @@ ${whyYou.trim()}`;
       );
     }
 
+    // Post-process: word count enforcement
+    const wordCount = cleaned
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0).length;
+    let finalText = cleaned;
+
+    if (wordCount > 260) {
+      // Trim from the end: remove sentences until under 250
+      const sentences = cleaned.split(/(?<=[.!?])\s+/);
+      let trimmed = "";
+      let count = 0;
+      for (const sentence of sentences) {
+        const sentenceWords = sentence
+          .trim()
+          .split(/\s+/)
+          .filter((w) => w.length > 0).length;
+        if (count + sentenceWords > 250) break;
+        trimmed += (trimmed ? " " : "") + sentence;
+        count += sentenceWords;
+      }
+      finalText = trimmed;
+      console.warn(
+        `[ApplyFaster] Word count trimmed: ${wordCount} → ${count} words`
+      );
+    } else if (wordCount > 250) {
+      console.warn(
+        `[ApplyFaster] Word count slightly over: ${wordCount} words (limit 250)`
+      );
+    }
+
     // If we need to update the purchase cookie (e.g., increment single usage),
     // add it to the response headers
     if (updatedPurchase) {
@@ -983,7 +1014,7 @@ ${whyYou.trim()}`;
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode(cleaned));
+        controller.enqueue(encoder.encode(finalText));
         controller.close();
       },
     });
