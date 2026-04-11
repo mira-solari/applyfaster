@@ -6,6 +6,7 @@ import Hero from "@/components/Hero";
 import Generator from "@/components/Generator";
 import HowItWorks from "@/components/HowItWorks";
 import Pricing from "@/components/Pricing";
+import BeforeAfter from "@/components/BeforeAfter";
 import FAQ from "@/components/FAQ";
 import Footer from "@/components/Footer";
 import HomeSchema from "@/components/HomeSchema";
@@ -150,6 +151,7 @@ export default function Home() {
         />
       </div>
       <HowItWorks />
+      <BeforeAfter />
       <Pricing />
       <FAQ />
       <Footer />
