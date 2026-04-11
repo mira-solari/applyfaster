@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import { track } from "@vercel/analytics";
 
 type Tone = "professional" | "enthusiastic" | "conversational";
 type ActiveTab = "cover-letter" | "resume-tailoring";
@@ -52,7 +53,17 @@ export default function Generator({
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorCopied, setTailorCopied] = useState(false);
 
+  // Analytics: track first form interaction only once per session
+  const hasTrackedInteraction = useRef(false);
+  const trackFormInteraction = useCallback((field: string) => {
+    if (!hasTrackedInteraction.current) {
+      hasTrackedInteraction.current = true;
+      track("form_interaction", { first_field: field });
+    }
+  }, []);
+
   const handleFileUpload = useCallback(async (file: File) => {
+    trackFormInteraction("resume_upload");
     setIsUploading(true);
     setError("");
     try {
@@ -72,7 +83,7 @@ export default function Generator({
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [trackFormInteraction]);
 
   // -------------------------------------------------------------------------
   // Cover letter generation (unchanged logic)
@@ -99,6 +110,11 @@ export default function Generator({
     setLimitReached(false);
     setIsGenerating(true);
     setCoverLetter("");
+
+    // Analytics: track generate button click
+    const currentPlan = planStatus?.plan ?? "free";
+    track("generate_clicked", { plan: currentPlan, tone });
+    const generationStartTime = Date.now();
 
     try {
       const response = await fetch("/api/generate", {
@@ -136,6 +152,16 @@ export default function Generator({
         }
       }
 
+      // Analytics: track successful generation
+      const generationTimeMs = Date.now() - generationStartTime;
+      const wordCount = fullText.trim().split(/\s+/).filter((w) => w.length > 0).length;
+      track("generation_complete", {
+        word_count: wordCount,
+        generation_time_ms: generationTimeMs,
+        plan: currentPlan,
+        tone,
+      });
+
       setGenerationCount((prev) => prev + 1);
 
       // Refresh plan status after successful generation (usage count changed)
@@ -143,10 +169,17 @@ export default function Generator({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setError(message);
+
+      // Analytics: track generation error
+      const errorType = message.includes("limit") ? "limit_reached"
+        : message.includes("Rate limit") ? "rate_limited"
+        : message.includes("too long") ? "input_too_long"
+        : "other";
+      track("generation_error", { error_type: errorType, plan: currentPlan });
     } finally {
       setIsGenerating(false);
     }
-  }, [resume, jobDescription, tone, whyCompany, whyYou, onPlanStatusChange]);
+  }, [resume, jobDescription, tone, whyCompany, whyYou, onPlanStatusChange, planStatus]);
 
   // -------------------------------------------------------------------------
   // Resume tailoring
@@ -211,6 +244,7 @@ export default function Generator({
     navigator.clipboard.writeText(coverLetter);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    track("copy_result", { type: "cover_letter" });
   }, [coverLetter]);
 
   const handleCopyTailored = useCallback(() => {
@@ -218,6 +252,7 @@ export default function Generator({
     navigator.clipboard.writeText(tailorResult.tailoredResume);
     setTailorCopied(true);
     setTimeout(() => setTailorCopied(false), 2000);
+    track("copy_result", { type: "tailored_resume" });
   }, [tailorResult]);
 
   const handleDownload = useCallback(() => {
@@ -420,6 +455,7 @@ export default function Generator({
                 onChange={(e) => {
                   setResume(e.target.value);
                   setUploadedFileName("");
+                  trackFormInteraction("resume");
                 }}
                 placeholder="Paste your resume text here, or upload a PDF above. Include your work experience, skills, education, and achievements."
                 className="w-full h-48 px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition resize-none text-sm"
@@ -436,7 +472,7 @@ export default function Generator({
               </label>
               <textarea
                 value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
+                onChange={(e) => { setJobDescription(e.target.value); trackFormInteraction("job_description"); }}
                 placeholder="Paste the job listing here... Include the role title, requirements, responsibilities, and company info."
                 className="w-full h-48 px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition resize-none text-sm"
               />
@@ -458,7 +494,7 @@ export default function Generator({
                     {tones.map((t) => (
                       <button
                         key={t.value}
-                        onClick={() => setTone(t.value)}
+                        onClick={() => { setTone(t.value); trackFormInteraction("tone"); }}
                         className={`px-3 py-2.5 rounded-lg text-sm font-medium transition flex flex-col items-center gap-0.5 ${
                           tone === t.value
                             ? "bg-indigo-600 text-white"

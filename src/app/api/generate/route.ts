@@ -951,6 +951,7 @@ ${whyYou.trim()}`;
 
     const anthropic = getAnthropicClient();
 
+    const generationStart = Date.now();
     const response = await anthropic.messages.create({
       model: "claude-opus-4-6",
       max_tokens: 1024,
@@ -958,6 +959,7 @@ ${whyYou.trim()}`;
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.7,
     });
+    const generationTimeMs = Date.now() - generationStart;
 
     const fullText =
       response.content[0].type === "text" ? response.content[0].text : "";
@@ -1003,6 +1005,13 @@ ${whyYou.trim()}`;
         `[ApplyFaster] Word count slightly over: ${wordCount} words (limit 250)`
       );
     }
+
+    // Analytics: structured server-side log for generation metrics
+    const finalWordCount = finalText.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+    const currentPlan = purchase?.plan ?? "free";
+    console.log(
+      `[ApplyFaster:analytics] generation_complete plan=${currentPlan} tone=${tone} words=${finalWordCount} time_ms=${generationTimeMs} seniority=${seniorityLevel}`
+    );
 
     // If we need to update the purchase cookie (e.g., increment single usage),
     // add it to the response headers

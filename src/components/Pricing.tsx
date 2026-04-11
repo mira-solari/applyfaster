@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
@@ -11,6 +12,9 @@ export default function Pricing() {
       document.getElementById("generator")?.scrollIntoView({ behavior: "smooth" });
       return;
     }
+
+    // Analytics: track payment initiation
+    track("payment_initiated", { plan });
 
     setLoading(plan);
     try {
