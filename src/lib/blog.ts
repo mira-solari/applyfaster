@@ -68,6 +68,11 @@ export function getPostBySlug(slug: string): BlogPost | null {
   const fileContent = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(fileContent);
 
+  // Draft posts should not be publicly accessible
+  if (data.draft === true) {
+    return null;
+  }
+
   return {
     slug,
     title: data.title ?? slug,
