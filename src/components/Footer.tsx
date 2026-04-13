@@ -51,6 +51,15 @@ export default function Footer() {
               style={{ width: 120, height: 'auto' }}
             />
           </a>
+          <a href="https://postmake.io" target="_blank" rel="noopener">
+            <img
+              src="https://postmake.io/postmake_badge_dark.png"
+              alt="Featured on Postmake"
+              width="150"
+              height="54"
+              style={{ width: 120, height: 'auto' }}
+            />
+          </a>
         </div>
       </div>
     </footer>
