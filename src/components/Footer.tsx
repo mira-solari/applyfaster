@@ -60,6 +60,15 @@ export default function Footer() {
               style={{ width: 120, height: 'auto' }}
             />
           </a>
+          <a href="https://www.toolpilot.ai" target="_blank" rel="noopener">
+            <img
+              src="https://www.toolpilot.ai/cdn/shop/files/f-w_690x151_crop_center.png?v=1695883028"
+              alt="Featured on ToolPilot"
+              width="150"
+              height="33"
+              style={{ width: 120, height: 'auto' }}
+            />
+          </a>
         </div>
       </div>
     </footer>
