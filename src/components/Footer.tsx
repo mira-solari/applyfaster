@@ -69,6 +69,9 @@ export default function Footer() {
               style={{ width: 120, height: 'auto' }}
             />
           </a>
+          <a href="https://www.aitoolzdir.com" target="_blank" rel="noopener" className="text-sm text-gray-500 hover:text-gray-300 transition">
+            AI Toolz Dir
+          </a>
         </div>
       </div>
     </footer>
